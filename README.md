@@ -1,5 +1,8 @@
 # 🛡️ PhishGuard — Phishing Website Detection System
 
+Live Demo: https://iilm-web-technology-lab-major-proje.vercel.app/
+backend: https://iilm-web-technology-lab-major-project.onrender.com/
+
 ML-powered phishing URL detection using Flask + scikit-learn ensemble classifier.
 
 ## Features
