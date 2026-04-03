@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PhishGuard 3D — Neural Threat Detection</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@300;400;500;600;700&family=Orbitron:wght@400;500;700;900&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --ink:#020408;
+  --glass:rgba(8,20,40,0.72);
+  --glass2:rgba(12,28,56,0.6);
+  --border:rgba(0,200,255,0.1);
+  --border2:rgba(0,200,255,0.22);
+  --neon:#00c8ff;
+  --neon2:#0055ff;
+  --danger:#ff3355;
+  --safe:#00ffaa;
+  --warn:#ffaa00;
+  --text:#c8e8ff;
+  --muted:rgba(140,190,255,0.4);
+  --FD:'Orbitron',sans-serif;
+  --FB:'Rajdhani',sans-serif;
+  --FM:'JetBrains Mono',monospace;
+}
+html{scroll-behavior:smooth}
+body{
+  background:var(--ink);color:var(--text);
+  font-family:var(--FB);min-height:100vh;overflow-x:hidden;
+}
+#bgc{position:fixed;inset:0;z-index:0;pointer-events:none}
+body::after{
+  content:'';position:fixed;inset:0;z-index:1;pointer-events:none;
+  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,200,255,0.012) 2px,rgba(0,200,255,0.012) 4px);
+  animation:sl 12s linear infinite;
+}
+@keyframes sl{0%{background-position:0 0}100%{background-position:0 80px}}
+
+.app{position:relative;z-index:2;max-width:1020px;margin:0 auto;padding:36px 22px 80px}
+
+/* HEADER */
+.hdr{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:44px;padding-bottom:18px;
+  border-bottom:1px solid var(--border2);position:relative;
+}
+.hdr::after{content:'';position:absolute;bottom:-1px;left:0;width:220px;height:1px;background:linear-gradient(90deg,var(--neon),transparent)}
+
+.logo{display:flex;align-items:center;gap:14px}
+.logo3d{width:50px;height:50px;perspective:110px;flex-shrink:0}
+.lcube{width:100%;height:100%;transform-style:preserve-3d;animation:lspin 9s linear infinite}
+.lface{
+  position:absolute;inset:0;
+  border:1px solid rgba(0,200,255,0.45);
+  display:flex;align-items:center;justify-content:center;
+  font-size:20px;background:rgba(0,200,255,0.04);backdrop-filter:blur(4px);
+}
+.lface.fr{transform:translateZ(25px)}
+.lface.bk{transform:rotateY(180deg) translateZ(25px)}
+.lface.le{transform:rotateY(-90deg) translateZ(25px)}
+.lface.ri{transform:rotateY(90deg)  translateZ(25px)}
+.lface.tp{transform:rotateX(90deg)  translateZ(25px)}
+.lface.bt{transform:rotateX(-90deg) translateZ(25px)}
+@keyframes lspin{0%{transform:rotateX(12deg) rotateY(0)}100%{transform:rotateX(12deg) rotateY(360deg)}}
+
+.ltitle{font-family:var(--FD);font-size:21px;font-weight:700;letter-spacing:2px;background:linear-gradient(90deg,#fff,var(--neon));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.lsub{font-family:var(--FM);font-size:9px;color:var(--muted);letter-spacing:3px;margin-top:2px;text-transform:uppercase}
+
+.online{
+  display:flex;align-items:center;gap:8px;
+  font-family:var(--FM);font-size:10px;color:var(--safe);
+  border:1px solid rgba(0,255,170,0.18);border-radius:3px;
+  padding:6px 14px;background:rgba(0,255,170,0.04);
+}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--safe);box-shadow:0 0 7px var(--safe);position:relative}
+.dot::before{
+  content:'';position:absolute;inset:-4px;border-radius:50%;
+  border:1px solid var(--safe);animation:dpulse 2s ease infinite;
+}
+@keyframes dpulse{0%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(2.4)}}
+
+/* STATS */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:11px;margin-bottom:28px}
+.sc{
+  background:var(--glass);border:1px solid var(--border);border-radius:6px;
+  padding:15px;position:relative;overflow:hidden;backdrop-filter:blur(20px);
+  transition:border-color .25s,transform .2s;
+}
+.sc:hover{border-color:var(--border2);transform:translateY(-2px)}
+.sc::after{
+  content:'';position:absolute;top:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,var(--neon),transparent);
+  opacity:0;transition:opacity .3s;
+}
+.sc:hover::after{opacity:1}
+.slbl{font-family:var(--FM);font-size:8px;color:var(--muted);text-transform:uppercase;letter-spacing:2px;margin-bottom:7px}
+.sval{font-family:var(--FD);font-size:25px;font-weight:700;color:#fff;line-height:1}
+.sval.d{color:var(--danger);text-shadow:0 0 18px rgba(255,51,85,.5)}
+.sval.s{color:var(--safe);text-shadow:0 0 18px rgba(0,255,170,.5)}
+.sval.w{color:var(--warn)}
+.sc-ico{position:absolute;bottom:7px;right:11px;font-size:16px;opacity:.12}
+
+/* MAIN CARD */
+.card{
+  background:var(--glass);border:1px solid var(--border);border-radius:8px;
+  padding:26px;backdrop-filter:blur(22px);margin-bottom:18px;position:relative;overflow:hidden;
+}
+.card::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent 0%,var(--neon) 50%,transparent 100%);opacity:.45;
+}
+
+/* TABS */
+.tabs{display:flex;gap:2px;background:rgba(0,0,0,.35);border-radius:5px;padding:3px;margin-bottom:22px}
+.tab{
+  flex:1;padding:9px 14px;background:none;border:none;border-radius:3px;
+  color:var(--muted);font-family:var(--FB);font-size:13px;font-weight:500;
+  cursor:pointer;letter-spacing:.5px;transition:all .2s;
+}
+.tab.active{
+  background:rgba(0,200,255,.1);color:var(--neon);
+  border:1px solid rgba(0,200,255,.18);
+  text-shadow:0 0 10px rgba(0,200,255,.5);
+}
+.tpanel{display:none}
+.tpanel.active{display:block}
+
+/* INPUT */
+.stitle{
+  font-family:var(--FM);font-size:8px;color:var(--muted);
+  text-transform:uppercase;letter-spacing:3px;margin-bottom:14px;
+  display:flex;align-items:center;gap:8px;
+}
+.stitle::before{content:'//';color:var(--neon);opacity:.45}
+
+.irow{display:flex;gap:9px;margin-bottom:14px}
+.ufield{
+  flex:1;background:rgba(0,8,24,.85);border:1px solid var(--border2);
+  border-radius:5px;padding:13px 17px;color:#fff;
+  font-family:var(--FM);font-size:13px;outline:none;
+  transition:all .3s;caret-color:var(--neon);
+}
+.ufield:focus{border-color:var(--neon);box-shadow:0 0 0 2px rgba(0,200,255,.08),inset 0 0 16px rgba(0,200,255,.02)}
+.ufield::placeholder{color:rgba(140,190,255,.2)}
+.bprimary{
+  background:transparent;border:1px solid var(--neon);border-radius:5px;
+  padding:13px 26px;color:var(--neon);
+  font-family:var(--FD);font-size:12px;font-weight:700;letter-spacing:2px;
+  cursor:pointer;white-space:nowrap;position:relative;overflow:hidden;
+  transition:all .3s;text-shadow:0 0 8px rgba(0,200,255,.45);
+}
+.bprimary::before{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(135deg,var(--neon2),var(--neon));opacity:0;transition:opacity .3s;
+}
+.bprimary:hover:not(:disabled)::before{opacity:.12}
+.bprimary:hover:not(:disabled){box-shadow:0 0 18px rgba(0,200,255,.28);transform:translateY(-1px)}
+.bprimary:disabled{opacity:.3;cursor:not-allowed}
+.bprimary span{position:relative;z-index:1}
+
+.samples{display:flex;flex-wrap:wrap;gap:5px}
+.slbl2{font-family:var(--FM);font-size:9px;color:var(--muted);margin-right:3px;display:flex;align-items:center}
+.sbtn{
+  background:rgba(0,200,255,.03);border:1px solid rgba(0,200,255,.12);
+  border-radius:3px;padding:3px 9px;color:rgba(140,190,255,.55);
+  font-family:var(--FM);font-size:9px;cursor:pointer;transition:all .2s;
+}
+.sbtn:hover{border-color:var(--neon);color:var(--neon);background:rgba(0,200,255,.07)}
+.sbtn.ph{border-color:rgba(255,51,85,.18);color:rgba(255,110,130,.55)}
+.sbtn.ph:hover{border-color:var(--danger);color:var(--danger);background:rgba(255,51,85,.05)}
+
+.errbox{
+  display:none;background:rgba(255,51,85,.05);border:1px solid rgba(255,51,85,.18);
+  border-radius:5px;padding:11px 15px;
+  font-family:var(--FM);font-size:11px;color:rgba(255,100,120,.88);margin-top:10px;
+}
+.errbox.show{display:block}
+
+/* LOADER */
+.ldwrap{display:none;flex-direction:column;align-items:center;padding:44px;gap:18px}
+.ldwrap.show{display:flex}
+.ld3d{width:58px;height:58px;perspective:180px}
+.ldcube{width:100%;height:100%;transform-style:preserve-3d;animation:ldspin 1.1s cubic-bezier(.4,0,.6,1) infinite}
+.ldface{position:absolute;inset:0;border:1.5px solid rgba(0,200,255,.38)}
+.ldface.lf{transform:translateZ(29px);background:rgba(0,200,255,.05)}
+.ldface.lb{transform:rotateY(180deg) translateZ(29px);background:rgba(0,200,255,.03)}
+.ldface.ll{transform:rotateY(-90deg) translateZ(29px);background:rgba(0,100,255,.03)}
+.ldface.lr{transform:rotateY(90deg) translateZ(29px);background:rgba(0,100,255,.05)}
+.ldface.lt{transform:rotateX(90deg) translateZ(29px);background:rgba(0,200,255,.07)}
+.ldface.lbt{transform:rotateX(-90deg) translateZ(29px);background:rgba(0,200,255,.03)}
+@keyframes ldspin{0%{transform:rotateX(14deg) rotateY(0) scale(1)}50%{transform:rotateX(14deg) rotateY(180deg) scale(1.08)}100%{transform:rotateX(14deg) rotateY(360deg) scale(1)}}
+.ldtxt{font-family:var(--FM);font-size:10px;color:var(--muted);letter-spacing:2px;animation:blink 1.1s ease infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
+
+/* RESULT */
+#rw{display:none}
+.rbox{
+  border-radius:7px;overflow:hidden;border:1px solid var(--border);
+  animation:rin .48s cubic-bezier(.16,1,.3,1);background:rgba(3,10,26,.92);margin-top:18px;
+}
+@keyframes rin{from{opacity:0;transform:translateY(18px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
+
+/* THREAT METER */
+.tmwrap{
+  padding:28px 26px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:28px;
+}
+.m3d{width:128px;height:128px;flex-shrink:0;perspective:360px;position:relative}
+.mdisc{
+  width:128px;height:128px;border-radius:50%;
+  transform-style:preserve-3d;position:relative;
+  animation:dtilt 5s ease-in-out infinite alternate;
+}
+@keyframes dtilt{from{transform:rotateX(54deg) rotateZ(-4deg)}to{transform:rotateX(54deg) rotateZ(4deg)}}
+.dring{position:absolute;border-radius:50%;border:2.5px solid transparent}
+.dr1{inset:0;border-color:rgba(0,200,255,.14)}
+.dr2{inset:9px;border-color:rgba(0,200,255,.09)}
+.dr3{
+  inset:18px;
+  border-top-color:var(--neon);border-right-color:var(--neon);
+  animation:drr 2.8s linear infinite;
+}
+@keyframes drr{to{transform:rotate(360deg)}}
+.dfill{
+  position:absolute;inset:22px;border-radius:50%;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  background:rgba(0,8,22,.9);border:1px solid rgba(0,200,255,.18);
+}
+.dpct{font-family:var(--FD);font-size:19px;font-weight:900;line-height:1}
+.dtiny{font-family:var(--FM);font-size:6px;color:var(--muted);letter-spacing:1px;margin-top:2px}
+
+.rinfo{flex:1}
+.vrow{display:flex;align-items:center;gap:10px;margin-bottom:7px}
+.vchip{
+  font-family:var(--FD);font-size:10px;font-weight:700;letter-spacing:2.5px;
+  padding:5px 14px;border-radius:2px;
+  clip-path:polygon(0 0,calc(100% - 7px) 0,100% 50%,calc(100% - 7px) 100%,0 100%);
+}
+.vchip.ph{background:rgba(255,51,85,.13);color:var(--danger);border:1px solid rgba(255,51,85,.28)}
+.vchip.ok{background:rgba(0,255,170,.08);color:var(--safe);border:1px solid rgba(0,255,170,.18)}
+.rname{font-family:var(--FD);font-size:26px;font-weight:900;line-height:1}
+.rurl{font-family:var(--FM);font-size:10px;color:var(--muted);margin:5px 0 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:490px}
+.rtbadge{font-family:var(--FM);font-size:9px;color:rgba(0,200,255,.35);letter-spacing:1px}
+
+/* PROB BARS */
+.pbars{
+  padding:18px 26px;border-bottom:1px solid var(--border);
+  display:grid;grid-template-columns:1fr 1fr;gap:18px;
+}
+.pblbl{font-family:var(--FM);font-size:8px;color:var(--muted);text-transform:uppercase;letter-spacing:2px;margin-bottom:5px}
+.pbnum{font-family:var(--FD);font-size:28px;font-weight:900;margin-bottom:7px;line-height:1}
+.pbnum.ph{color:var(--danger);text-shadow:0 0 18px rgba(255,51,85,.38)}
+.pbnum.lg{color:var(--safe);text-shadow:0 0 18px rgba(0,255,170,.38)}
+.pbtrack{height:3px;background:rgba(255,255,255,.04);border-radius:2px;overflow:visible;position:relative}
+.pbfill{
+  height:100%;border-radius:2px;width:0;
+  transition:width 1.1s cubic-bezier(.16,1,.3,1);position:relative;
+}
+.pbfill::after{
+  content:'';position:absolute;right:-3px;top:-4px;
+  width:6px;height:11px;border-radius:1px;background:inherit;opacity:.75;
+}
+.pbfill.ph{background:linear-gradient(90deg,rgba(255,51,85,.35),var(--danger))}
+.pbfill.lg{background:linear-gradient(90deg,rgba(0,255,170,.35),var(--safe))}
+
+/* RISK GRID */
+.rgrid{padding:18px 26px;border-bottom:1px solid var(--border);display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.rctitle{font-family:var(--FM);font-size:8px;text-transform:uppercase;letter-spacing:2px;margin-bottom:9px}
+.rctitle.d{color:rgba(255,51,85,.45)}
+.rctitle.s{color:rgba(0,255,170,.45)}
+.ritem{
+  display:flex;align-items:flex-start;gap:9px;padding:7px 10px;
+  border-radius:3px;margin-bottom:4px;font-size:12px;line-height:1.4;
+}
+.ritem.d{background:rgba(255,51,85,.04);border:1px solid rgba(255,51,85,.09);color:rgba(255,175,185,.75)}
+.ritem.s{background:rgba(0,255,170,.04);border:1px solid rgba(0,255,170,.09);color:rgba(140,255,210,.75)}
+.rico{font-size:11px;flex-shrink:0;margin-top:1px}
+.noitems{font-size:11px;color:var(--muted);font-style:italic;padding:3px 0}
+
+/* FEATURES */
+.fwrap{padding:18px 26px}
+.ftitle{font-family:var(--FM);font-size:8px;color:var(--muted);text-transform:uppercase;letter-spacing:2px;margin-bottom:12px}
+.fgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(152px,1fr));gap:5px}
+.fcell{
+  background:rgba(0,8,22,.55);border:1px solid rgba(0,200,255,.06);
+  border-radius:3px;padding:7px 9px;transition:all .2s;position:relative;overflow:hidden;
+}
+.fcell:hover{border-color:rgba(0,200,255,.18)}
+.fcell::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;background:transparent;transition:background .2s}
+.fcell.hd::before{background:var(--danger)}
+.fcell.hs::before{background:var(--safe)}
+.fname{font-family:var(--FM);font-size:7px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px}
+.fval{font-family:var(--FD);font-size:14px;font-weight:700;color:#fff}
+.fval.fd{color:var(--danger)}
+.fval.fs{color:var(--safe)}
+
+/* BATCH */
+.bta{
+  width:100%;height:115px;resize:vertical;
+  background:rgba(0,8,24,.85);border:1px solid var(--border2);border-radius:5px;
+  padding:11px 15px;color:#fff;font-family:var(--FM);font-size:11px;
+  outline:none;transition:border-color .2s;
+}
+.bta:focus{border-color:var(--neon)}
+.bsec{
+  background:transparent;border:1px solid rgba(0,200,255,.25);border-radius:5px;
+  padding:9px 20px;color:rgba(0,200,255,.65);
+  font-family:var(--FD);font-size:11px;font-weight:600;letter-spacing:1.5px;
+  cursor:pointer;margin-top:9px;transition:all .2s;
+}
+.bsec:hover{border-color:var(--neon);color:var(--neon);box-shadow:0 0 10px rgba(0,200,255,.12)}
+.bres{margin-top:12px}
+.brow{
+  display:flex;align-items:center;gap:9px;padding:8px 11px;border-radius:3px;
+  margin-bottom:3px;background:rgba(0,8,22,.5);border:1px solid var(--border);
+  font-size:11px;transition:border-color .2s;
+}
+.brow:hover{border-color:var(--border2)}
+.burl{flex:1;font-family:var(--FM);font-size:9px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bbadge{padding:2px 7px;border-radius:2px;font-family:var(--FD);font-size:8px;font-weight:700;letter-spacing:1px;white-space:nowrap}
+.bbadge.ph{background:rgba(255,51,85,.09);color:var(--danger);border:1px solid rgba(255,51,85,.18)}
+.bbadge.ok{background:rgba(0,255,170,.07);color:var(--safe);border:1px solid rgba(0,255,170,.13)}
+.bpct{font-family:var(--FM);font-size:9px;color:var(--muted);white-space:nowrap}
+
+/* HISTORY */
+.hhdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.bclr{
+  background:none;border:1px solid rgba(255,51,85,.18);border-radius:3px;
+  padding:3px 11px;color:rgba(255,51,85,.45);font-size:10px;
+  font-family:var(--FM);cursor:pointer;transition:all .2s;
+}
+.bclr:hover{border-color:var(--danger);color:var(--danger)}
+.hlist{max-height:370px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(0,200,255,.18) transparent}
+.hrow{
+  display:flex;align-items:center;gap:9px;padding:8px 11px;border-radius:3px;
+  margin-bottom:3px;background:rgba(0,8,22,.5);border:1px solid var(--border);
+  cursor:pointer;transition:all .2s;
+}
+.hrow:hover{border-color:var(--border2);background:rgba(0,24,52,.4)}
+.hurl{flex:1;font-family:var(--FM);font-size:9px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.htm{font-size:9px;color:rgba(140,190,255,.18);font-family:var(--FM);white-space:nowrap}
+.rtag{padding:2px 6px;border-radius:2px;font-family:var(--FD);font-size:7px;font-weight:700;letter-spacing:1.5px;white-space:nowrap}
+.rtag.CRITICAL{background:rgba(255,51,85,.1);color:var(--danger)}
+.rtag.HIGH{background:rgba(255,120,0,.1);color:#ff7a00}
+.rtag.MEDIUM{background:rgba(255,170,0,.1);color:var(--warn)}
+.rtag.LOW{background:rgba(100,200,150,.09);color:#64c896}
+.rtag.SAFE{background:rgba(0,255,170,.07);color:var(--safe)}
+
+footer{
+  position:relative;z-index:2;text-align:center;padding:26px 22px;
+  font-family:var(--FM);font-size:9px;color:rgba(140,190,255,.18);
+  letter-spacing:2px;border-top:1px solid rgba(0,200,255,.05);
+}
+@media(max-width:680px){
+  .stats{grid-template-columns:repeat(2,1fr)}
+  .pbars,.rgrid{grid-template-columns:1fr}
+  .irow{flex-direction:column}
+  .tmwrap{flex-direction:column;text-align:center}
+  .rurl{max-width:100%}
+}
+</style>
+</head>
+<body>
+
+<canvas id="bgc"></canvas>
+
+<div class="app">
+  <header class="hdr">
+    <div class="logo">
+      <div class="logo3d">
+        <div class="lcube">
+          <div class="lface fr">🛡</div><div class="lface bk">🔍</div>
+          <div class="lface le">⚡</div><div class="lface ri">🎯</div>
+          <div class="lface tp">🔒</div><div class="lface bt">🌐</div>
+        </div>
+      </div>
+      <div>
+        <div class="ltitle">PHISHGUARD</div>
+        <div class="lsub">Neural Threat Detection v3.0</div>
+      </div>
+    </div>
+    <div class="online">
+      <div class="dot"></div>
+      <span>ML ENGINE ONLINE</span>
+    </div>
+  </header>
+
+  <div class="stats">
+    <div class="sc"><div class="slbl">Scanned</div><div class="sval" id="s0">0</div><div class="sc-ico">◈</div></div>
+    <div class="sc"><div class="slbl">Threats</div><div class="sval d" id="s1">0</div><div class="sc-ico">⚠</div></div>
+    <div class="sc"><div class="slbl">Legitimate</div><div class="sval s" id="s2">0</div><div class="sc-ico">✓</div></div>
+    <div class="sc"><div class="slbl">Threat Rate</div><div class="sval w" id="s3">0%</div><div class="sc-ico">%</div></div>
+  </div>
+
+  <div class="card">
+    <div class="tabs">
+      <button class="tab active" onclick="sw('single')">⬡ Single Scan</button>
+      <button class="tab" onclick="sw('batch')">⬡ Batch Scan</button>
+      <button class="tab" onclick="sw('history')">⬡ History</button>
+    </div>
+
+    <!-- SINGLE -->
+    <div class="tpanel active" id="tp-single">
+      <div class="stitle">Target Analysis</div>
+      <div class="irow">
+        <input class="ufield" id="uin" type="text" placeholder="https://target.com/path/to/analyze" autocomplete="off" spellcheck="false"/>
+        <button class="bprimary" id="sbtn" onclick="doScan()"><span>SCAN URL</span></button>
+      </div>
+      <div class="samples">
+        <span class="slbl2">Quick load:</span>
+        <button class="sbtn" onclick="su('https://www.google.com')">google ✓</button>
+        <button class="sbtn" onclick="su('https://github.com/openai')">github ✓</button>
+        <button class="sbtn" onclick="su('https://www.paypal.com/login')">paypal ✓</button>
+        <button class="sbtn ph" onclick="su('http://paypal-secure-login.tk/verify/account')">paypal phish ✗</button>
+        <button class="sbtn ph" onclick="su('http://apple-id-verify.ml/signin/confirm')">apple phish ✗</button>
+        <button class="sbtn ph" onclick="su('http://192.168.1.1/login/bank/secure')">IP addr ✗</button>
+      </div>
+      <div class="errbox" id="eb"></div>
+      <div class="ldwrap" id="ld">
+        <div class="ld3d">
+          <div class="ldcube">
+            <div class="ldface lf"></div><div class="ldface lb"></div>
+            <div class="ldface ll"></div><div class="ldface lr"></div>
+            <div class="ldface lt"></div><div class="ldface lbt"></div>
+          </div>
+        </div>
+        <div class="ldtxt">SCANNING URL FEATURES...</div>
+      </div>
+      <div id="rw"></div>
+    </div>
+
+    <!-- BATCH -->
+    <div class="tpanel" id="tp-batch">
+      <div class="stitle">Batch Target Analysis</div>
+      <textarea class="bta" id="btin" placeholder="One URL per line (max 50)&#10;https://example1.com&#10;http://phishing-site.tk/login&#10;https://google.com"></textarea>
+      <button class="bsec" onclick="doBatch()">⚡ EXECUTE BATCH SCAN</button>
+      <div class="bres" id="bres"></div>
+    </div>
+
+    <!-- HISTORY -->
+    <div class="tpanel" id="tp-history">
+      <div class="hhdr">
+        <div class="stitle" style="margin:0">Scan Log</div>
+        <button class="bclr" onclick="clrHist()">PURGE LOG</button>
+      </div>
+      <div class="hlist" id="hl">
+        <p style="color:var(--muted);font-size:10px;font-family:var(--FM);text-align:center;padding:30px;letter-spacing:2px">// NO SCANS LOGGED //</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer>PHISHGUARD 3D // ML ENSEMBLE RF+GB // 30 URL FEATURES // FLASK + SKLEARN</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* THREE.JS BG */
+(function(){
+  const canvas=document.getElementById('bgc');
+  const renderer=new THREE.WebGLRenderer({canvas,alpha:true,antialias:true});
+  renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+  const scene=new THREE.Scene();
+  const camera=new THREE.PerspectiveCamera(60,innerWidth/innerHeight,.1,1000);
+  camera.position.z=30;
+  function resize(){renderer.setSize(innerWidth,innerHeight);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix()}
+  resize();window.addEventListener('resize',resize);
+
+  const N=700,geo=new THREE.BufferGeometry();
+  const pos=new Float32Array(N*3),col=new Float32Array(N*3);
+  for(let i=0;i<N;i++){
+    pos[i*3]=(Math.random()-.5)*130;
+    pos[i*3+1]=(Math.random()-.5)*130;
+    pos[i*3+2]=(Math.random()-.5)*70;
+    const r=Math.random();
+    if(r<.55){col[i*3]=0;col[i*3+1]=.45+Math.random()*.55;col[i*3+2]=1}
+    else if(r<.75){col[i*3]=0;col[i*3+1]=.8;col[i*3+2]=.4+Math.random()*.6}
+    else{col[i*3]=.15;col[i*3+1]=.25+Math.random()*.15;col[i*3+2]=1}
+  }
+  geo.setAttribute('position',new THREE.BufferAttribute(pos,3));
+  geo.setAttribute('color',new THREE.BufferAttribute(col,3));
+  scene.add(new THREE.Points(geo,new THREE.PointsMaterial({size:.13,vertexColors:true,transparent:true,opacity:.55})));
+
+  const cubes=[];
+  for(let i=0;i<10;i++){
+    const s=1.2+Math.random()*3.5;
+    const m=new THREE.EdgesGeometry(new THREE.BoxGeometry(s,s,s));
+    const cube=new THREE.LineSegments(m,new THREE.LineBasicMaterial({
+      color:Math.random()>.45?0x00c8ff:0x0044ff,transparent:true,opacity:.08+Math.random()*.1
+    }));
+    cube.position.set((Math.random()-.5)*65,(Math.random()-.5)*65,(Math.random()-.5)*22-5);
+    cube.userData.rs={(Math.random()-.5)*.007,(Math.random()-.5)*.011,(Math.random()-.5)*.005};
+    cube.userData.rsx=(Math.random()-.5)*.007;
+    cube.userData.rsy=(Math.random()-.5)*.011;
+    cube.userData.rsz=(Math.random()-.5)*.005;
+    scene.add(cube);cubes.push(cube);
+  }
+
+  /* grid */
+  const gm=new THREE.LineBasicMaterial({color:0x001025,transparent:true,opacity:.35});
+  for(let i=-24;i<=24;i+=4){
+    scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-48,i,-16),new THREE.Vector3(48,i,-16)]),gm));
+    scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(i,-48,-16),new THREE.Vector3(i,48,-16)]),gm));
+  }
+
+  let mx=0,my=0;
+  document.addEventListener('mousemove',e=>{mx=(e.clientX/innerWidth-.5)*.28;my=(e.clientY/innerHeight-.5)*-.28});
+
+  let t=0;
+  (function animate(){
+    requestAnimationFrame(animate);t+=.004;
+    camera.position.x+=(mx-camera.position.x)*.04;
+    camera.position.y+=(my-camera.position.y)*.04;
+    camera.lookAt(0,0,0);
+    cubes.forEach(c=>{c.rotation.x+=c.userData.rsx;c.rotation.y+=c.userData.rsy;c.rotation.z+=c.userData.rsz;c.position.y+=Math.sin(t+c.position.x)*.003});
+    const p=geo.attributes.position.array;
+    for(let i=0;i<N;i++){p[i*3+2]+=.007;if(p[i*3+2]>35)p[i*3+2]=-35}
+    geo.attributes.position.needsUpdate=true;
+    renderer.render(scene,camera);
+  })();
+})();
+</script>
+
+<script>
+let busy=false;
+
+function sw(n){
+  const ns=['single','batch','history'];
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',ns[i]===n));
+  document.querySelectorAll('.tpanel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('tp-'+n).classList.add('active');
+  if(n==='history')loadHist();
+}
+
+function su(u){document.getElementById('uin').value=u;sw('single')}
+function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function sherr(m){const e=document.getElementById('eb');e.textContent='⚠ '+m;e.classList.add('show')}
+function herr(){document.getElementById('eb').classList.remove('show')}
+function setbusy(v){
+  busy=v;
+  document.getElementById('ld').classList.toggle('show',v);
+  document.getElementById('sbtn').disabled=v;
+  document.getElementById('sbtn').querySelector('span').textContent=v?'SCANNING...':'SCAN URL';
+  if(v)document.getElementById('rw').style.display='none';
+}
+
+document.getElementById('uin').addEventListener('keydown',e=>{if(e.key==='Enter')doScan()});
+
+async function doScan(){
+  if(busy)return;
+  const url=document.getElementById('uin').value.trim();
+  if(!url){sherr('Enter a target URL');return}
+  herr();setbusy(true);
+  try{
+    const r=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url})});
+    const d=await r.json();
+    if(!r.ok)throw new Error(d.error||'Server error');
+    renderResult(d);updateStats();
+  }catch(e){sherr(e.message)}finally{setbusy(false)}
+}
+
+function renderResult(d){
+  const isP=d.prediction===1;
+  const rw=document.getElementById('rw');
+  const rc={CRITICAL:'#ff3355',HIGH:'#ff7800',MEDIUM:'#ffaa00',LOW:'#64c896',SAFE:'#00ffaa'};
+  const color=rc[d.risk_level]||'#fff';
+  const ris=d.risk_factors.length
+    ?d.risk_factors.map(r=>`<div class="ritem d"><span class="rico">${r.icon}</span><span>${r.text}</span></div>`).join('')
+    :'<div class="noitems">No risk factors</div>';
+  const saf=d.safe_factors.length
+    ?d.safe_factors.map(r=>`<div class="ritem s"><span class="rico">${r.icon}</span><span>${r.text}</span></div>`).join('')
+    :'<div class="noitems">No positive signals</div>';
+  const fts=d.features.map(f=>{
+    let cls='',disp=f.value,vc='';
+    if(f.type==='bool'){cls=f.value===1?'hd':'hs';disp=f.value===1?'YES':'NO';vc=f.value===1?'fd':'fs'}
+    else{const n=typeof f.value==='number'?Number.isInteger(f.value)?f.value:f.value.toFixed(3):f.value;disp=n}
+    return`<div class="fcell ${cls}"><div class="fname">${f.label}</div><div class="fval ${vc}">${disp}</div></div>`;
+  }).join('');
+
+  rw.style.display='block';
+  rw.innerHTML=`<div class="rbox">
+    <div class="tmwrap">
+      <div class="m3d"><div class="mdisc">
+        <div class="dring dr1"></div><div class="dring dr2"></div>
+        <div class="dring dr3" style="border-top-color:${color};border-right-color:${color}"></div>
+        <div class="dfill">
+          <div class="dpct" style="color:${color};text-shadow:0 0 18px ${color}55">${Math.round(d.phishing_probability)}%</div>
+          <div class="dtiny">THREAT</div>
+        </div>
+      </div></div>
+      <div class="rinfo">
+        <div class="vrow">
+          <div class="vchip ${isP?'ph':'ok'}">${isP?'PHISHING':'LEGITIMATE'}</div>
+        </div>
+        <div class="rname" style="color:${color};text-shadow:0 0 28px ${color}33">${d.risk_level} RISK</div>
+        <div class="rurl">${esc(d.url)}</div>
+        <div class="rtbadge">// ANALYZED IN ${d.analysis_time_ms}ms //</div>
+      </div>
+    </div>
+    <div class="pbars">
+      <div>
+        <div class="pblbl">Phishing Probability</div>
+        <div class="pbnum ph">${d.phishing_probability}%</div>
+        <div class="pbtrack"><div class="pbfill ph" id="gp" data-w="${d.phishing_probability}"></div></div>
+      </div>
+      <div>
+        <div class="pblbl">Legitimate Probability</div>
+        <div class="pbnum lg">${d.legitimate_probability}%</div>
+        <div class="pbtrack"><div class="pbfill lg" id="gl" data-w="${d.legitimate_probability}"></div></div>
+      </div>
+    </div>
+    <div class="rgrid">
+      <div>
+        <div class="rctitle d">⚠ Risk Factors [${d.risk_factors.length}]</div>${ris}
+      </div>
+      <div>
+        <div class="rctitle s">✓ Safe Signals [${d.safe_factors.length}]</div>${saf}
+      </div>
+    </div>
+    <div class="fwrap">
+      <div class="ftitle">// Feature Vector [${d.features.length}] //</div>
+      <div class="fgrid">${fts}</div>
+    </div>
+  </div>`;
+  requestAnimationFrame(()=>setTimeout(()=>{
+    const gp=document.getElementById('gp'),gl=document.getElementById('gl');
+    if(gp)gp.style.width=gp.dataset.w+'%';
+    if(gl)gl.style.width=gl.dataset.w+'%';
+  },60));
+}
+
+async function doBatch(){
+  const raw=document.getElementById('btin').value.trim();
+  if(!raw)return;
+  const urls=raw.split('\n').map(u=>u.trim()).filter(Boolean);
+  if(!urls.length)return;
+  const rd=document.getElementById('bres');
+  rd.innerHTML=`<p style="color:var(--muted);font-family:var(--FM);font-size:10px;padding:10px 0;letter-spacing:1px">// SCANNING ${urls.length} TARGETS...</p>`;
+  try{
+    const r=await fetch('/api/batch',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({urls})});
+    const d=await r.json();
+    if(!r.ok)throw new Error(d.error);
+    const ph=d.results.filter(r=>r.label==='Phishing').length;
+    const rows=d.results.map(r=>{
+      if(r.error)return`<div class="brow"><span class="burl">${esc(r.url)}</span><span style="color:var(--muted);font-family:var(--FM);font-size:9px">ERROR</span></div>`;
+      const ip=r.label==='Phishing';
+      return`<div class="brow"><span class="burl">${esc(r.url)}</span><span class="bbadge ${ip?'ph':'ok'}">${r.risk_level}</span><span class="bpct">${r.phishing_probability}%</span></div>`;
+    }).join('');
+    rd.innerHTML=`<p style="color:var(--muted);font-family:var(--FM);font-size:9px;padding:8px 0;letter-spacing:1px">// ${d.total} SCANNED — <span style="color:var(--danger)">${ph} THREATS</span> — <span style="color:var(--safe)">${d.total-ph} CLEAN</span> //</p>${rows}`;
+    updateStats();
+  }catch(e){rd.innerHTML=`<p style="color:var(--danger);font-family:var(--FM);font-size:10px">${e.message}</p>`}
+}
+
+async function loadHist(){
+  const list=document.getElementById('hl');
+  try{
+    const r=await fetch('/api/history'),d=await r.json();
+    if(!d.history.length){list.innerHTML='<p style="color:var(--muted);font-size:10px;font-family:var(--FM);text-align:center;padding:28px;letter-spacing:2px">// NO SCANS LOGGED //</p>';return}
+    list.innerHTML=d.history.map(h=>`<div class="hrow" onclick="su('${esc(h.url.replace('...',''))}');sw('single')">
+      <span class="hurl">${esc(h.url)}</span>
+      <span class="rtag ${h.risk_level}">${h.risk_level}</span>
+      <span style="color:${h.label==='Phishing'?'var(--danger)':'var(--safe)'};font-family:var(--FM);font-size:9px">${h.probability}%</span>
+      <span class="htm">${h.timestamp}</span>
+    </div>`).join('');
+  }catch(e){}
+}
+async function clrHist(){await fetch('/api/history',{method:'DELETE'});loadHist();updateStats()}
+
+async function updateStats(){
+  try{
+    const r=await fetch('/api/stats'),s=await r.json();
+    document.getElementById('s0').textContent=s.total;
+    document.getElementById('s1').textContent=s.phishing;
+    document.getElementById('s2').textContent=s.legitimate;
+    document.getElementById('s3').textContent=s.phishing_rate+'%';
+  }catch(e){}
+}
+updateStats();
+</script>
+</body>
+</html>
